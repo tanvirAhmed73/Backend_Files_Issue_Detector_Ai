@@ -193,32 +193,54 @@ export class AnalyzerInterfaceController {
   }
 
   @Get('document/:documentId/download')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
-@ApiOperation({ summary: "Download a specific document (base64 encoded)" })
-async downloadDocument(
-  @Req() req: Request,
-  @Param('documentId') documentId: string,
-  @Res() res: Response
-) {
-  try {
-    const userId = req.user.userId;
-    const document = await this.analyzerInterfaceService.getDocumentForDownload(userId, documentId);
-
-    // Send base64 as JSON response
-    return res.json({
-      fileName: document.fileName,
-      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      base64: document.content // base64 string from DB
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message || 'Failed to download document',
-    });
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Download a specific document" })
+  async downloadDocument(
+    @Req() req: Request,
+    @Param('documentId') documentId: string,
+    @Res() res: Response
+  ) {
+    try {
+      const userId = req.user.userId;
+      const document = await this.analyzerInterfaceService.getDocumentForDownload(userId, documentId);
+      
+      // Get the file content as buffer
+      const fileBuffer = Buffer.from(document.content, 'base64');
+      
+      // Set appropriate content type based on file type
+      const contentType = this.getContentType(document.fileName);
+      
+      // Set headers
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${document.fileName}"`);
+      res.setHeader('Content-Length', fileBuffer.length);
+      
+      // Send the file
+      res.send(fileBuffer);
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error.message || 'Failed to download document',
+      });
+    }
   }
-}
 
+  private getContentType(fileName: string): string {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    const contentTypeMap = {
+      'pdf': 'application/pdf',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'txt': 'text/plain',
+      'xls': 'application/vnd.ms-excel',
+      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'ppt': 'application/vnd.ms-powerpoint',
+      'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    };
+    
+    return contentTypeMap[extension] || 'application/octet-stream';
+  }
 
   @Post('rules')
   @UseGuards(JwtAuthGuard)
