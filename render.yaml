@@ -1,14 +1,11 @@
 services:
   - type: web
-    name: ai-file-issue-backend
+    name: dustpickal-backend
     env: node
-    buildCommand: npm install && npm run build
-    startCommand: npm run start:prod
-    plan: free
-    branch: main
-    autoDeploy: true
+    buildCommand: npm install -g yarn && yarn install && yarn build
+    startCommand: yarn start:prod
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 10000 # or whatever your app uses
+        value: 4000
